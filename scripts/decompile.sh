@@ -78,27 +78,32 @@ if [[ $DO_JADX -eq 1 ]]; then
         log_info "  Output: ${JADX_OUT}"
 
         # Flags optimized for AI-readable output:
-        #   --deobf           Rename obfuscated identifiers
-        #   --deobf-min 2     Treat names shorter than 2 chars as obfuscated
-        #   --deobf-max 64    Max length for generated names
-        #   --show-bad-code   Output code even when decompilation partially fails
-        #   --threads-count   Parallelize for speed
+        #   --deobf                  Rename obfuscated identifiers
+        #   --respect-bytecode-access-modifiers
+        #                            Preserve original access flags (for accurate matchers)
+        #   --show-bad-code          Output code even when decompilation partially fails
+        #   --deobf-cfg-file-mode read-or-save
+        #                            Reuse deobf mapping across re-decompilations
+        #   --no-res                 Skip resources (APKTool handles those)
+        #   --escape-unicode         Escape unicode chars for reliable string searching
+        #   --threads-count          Parallelize for speed
         # JADX exits non-zero when it encounters decompilation errors (common
         # with obfuscated apps). This is expected -- --show-bad-code ensures
         # output is still produced.
         "${JADX_BIN}" \
             -d "${JADX_OUT}" \
             --deobf \
-            --deobf-min 2 \
-            --deobf-max 64 \
+            --respect-bytecode-access-modifiers \
+            --deobf-cfg-file-mode read-or-save \
+            --no-res \
             --show-bad-code \
+            --escape-unicode \
             --threads-count "$(nproc)" \
             ${EXTRA_JADX_ARGS} \
             "${APK_PATH}" || true
 
         log_ok "JADX decompilation complete: ${JADX_OUT}"
         log_info "  Java source: ${JADX_OUT}/sources/"
-        log_info "  Resources:   ${JADX_OUT}/resources/"
     fi
 fi
 
@@ -120,7 +125,9 @@ if [[ $DO_APKTOOL -eq 1 ]]; then
         java -jar "${APKTOOL_JAR}" d \
             "${APK_PATH}" \
             -o "${APKTOOL_OUT}" \
-            -f
+            -f \
+            -j "$(nproc)" \
+            --keep-broken-res
 
         log_ok "APKTool decoding complete: ${APKTOOL_OUT}"
     fi

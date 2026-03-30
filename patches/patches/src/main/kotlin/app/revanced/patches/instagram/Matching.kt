@@ -57,6 +57,55 @@ internal val BytecodePatchContext.adInjectorV2Match by composingFirstMethod {
     )
 }
 
+/**
+ * Matches the feed/explore ad ranking dispatch method. This method builds
+ * and sends the feed/async_ads_ranking/ request, which ranks ad candidates
+ * for insertion. Blocking it prevents the ranking network call.
+ * Decompiled ref: p000X/C122054kL.java:390
+ */
+internal val BytecodePatchContext.adRankingMatch by composingFirstMethod(
+    "feed/async_ads_ranking/",
+) {
+    accessFlags(AccessFlags.PUBLIC, AccessFlags.FINAL)
+    returnType("V")
+    parameterTypes("L", "L")
+}
+
+/**
+ * Matches the feed/explore ad prefetch trigger. This is the last safe
+ * choke point before the generic fetch state machine starts (which mutates
+ * state and starts timers). Blocking it prevents the ad content fetch
+ * request (feed/injected_reels_media/) from being built.
+ *
+ * Note: XER subclass overrides E5z and takes its own ODML fetch path
+ * when c231558wZ.A03 is true (bypasses super.E5z). BlockAdFetchPatch
+ * handles this by also patching any subclass overrides of E5z.
+ * Decompiled ref: p000X/C122054kL.java:276
+ */
+internal val BytecodePatchContext.adPrefetchMatch by composingFirstMethod(
+    "pool_needs_refresh_early",
+    "pool_needs_refresh_late",
+) {
+    returnType("V")
+}
+
+/**
+ * Matches the story ad controller's toString (C5WP.A0C) via the unique
+ * ", numAdsInPool:" string. We don't patch this method — we use its
+ * classDef to find the sibling A8k() method (the controller/session
+ * initialization boolean) and patch that instead.
+ * Decompiled ref: p000X/C5WP.java:129
+ */
+internal val BytecodePatchContext.storyAdControllerClassMatch by composingFirstMethod(
+    ", numAdsInPool:",
+    ", earliestRequestPosition:",
+    ", currentIndex:",
+) {
+    accessFlags(AccessFlags.PUBLIC, AccessFlags.FINAL)
+    returnType("Ljava/lang/String;")
+    parameterTypes()
+}
+
 // Note: a DqI() ad classifier patch (AbstractC144325fA.A00) was considered
 // but dropped. DqI() gates more than just ad labels — it affects playback
 // handling (C1MG.java:55), ad session tracking (ViewOnKeyListenerC100373qT),

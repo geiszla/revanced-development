@@ -9,8 +9,10 @@ import app.revanced.patcher.patch.bytecodePatch
  *
  * Patch 1 -- Feed/grid/story/explore (V1): blocks SponsoredContentController.insertItem
  *           (C98953oB.A0J), the V1 ad insertion point.
- * Patch 2 -- Reels/clips: blocks the fetchSponsoredContent network call so
- *           sponsored reels are never fetched.
+ * Patch 2 -- All surfaces: blocks the central fetchSponsoredContent method
+ *           (C2DM.A0R) so no ads are fetched from the server. Despite the
+ *           name, this single method handles feed, stories, explore, AND
+ *           reels — it branches internally by container_module.
  * Patch 3 -- Feed/grid/story/explore (V2): blocks SponsoredContentControllerV2's
  *           insertion helper (C161926Ia.A02). Instagram switches to V2 after
  *           mobile config flag sync (36332197803747956L at C98353nD.java:672),
@@ -59,7 +61,7 @@ val hideAdsPatch = bytecodePatch(
             """,
         )
 
-        // -- Patch 2: Block reels/clips sponsored content fetch --
+        // -- Patch 2: Block all sponsored content fetch --
         //
         // C2DM.A0R (fetchSponsoredContent) is a ~700-line method with queue
         // bookkeeping and state flags before the actual network dispatch.

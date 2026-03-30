@@ -1,17 +1,10 @@
 package app.revanced.extension.instagram;
 
 /**
- * Runtime ad filter for Instagram patches.
- * Called from bytecode patches injected by HideAdsPatch.
- * Returns true to block ads, false to allow them through.
+ * Runtime extension for Instagram ad patches.
+ * Currently unused — patches use hardcoded early returns and are toggled
+ * at patch time via revanced-cli --include/--exclude.
+ * Future: add runtime helpers here if patches need complex filtering logic.
  */
 public class AdFilter {
-
-    /**
-     * Whether ads should be blocked. Currently always true.
-     * Future: read from SharedPreferences for a user toggle.
-     */
-    public static boolean shouldBlockAds() {
-        return true;
-    }
 }
