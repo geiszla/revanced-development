@@ -49,25 +49,57 @@ jobs:
             exit 1
           fi
 
-      - name: Build patches
+      - name: Build patches (Android/DEX)
         working-directory: patches
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.REVANCED_PACKAGES_TOKEN }}
           ORG_GRADLE_PROJECT_githubPackagesUsername: ${{ github.actor }}
           ORG_GRADLE_PROJECT_githubPackagesPassword: ${{ secrets.REVANCED_PACKAGES_TOKEN }}
-        run: ./gradlew build -x test --no-daemon
+        run: ./gradlew buildAndroid --no-daemon
 
       - name: Locate .rvp artifact
         id: rvp
         run: |
-          RVP=$(ls patches/patches/build/libs/*.rvp 2>/dev/null | head -1)
+          RVP=$(ls patches/patches/build/libs/*.rvp 2>/dev/null | grep -v -- '-sources\.rvp$' | head -1)
           if [ -z "$RVP" ]; then
-            echo "::error::No .rvp file produced by build"
+            echo "::error::No Android .rvp file produced. Files found in build/libs:"
+            ls -la patches/patches/build/libs/ || true
             exit 1
           fi
           echo "path=${RVP}" >> "$GITHUB_OUTPUT"
           echo "name=$(basename "${RVP}")" >> "$GITHUB_OUTPUT"
+          echo "Will upload: ${RVP} ($(stat -c%s "$RVP") bytes)"
+
+      - name: Sign .rvp with GPG
+        id: sign
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+        run: |
+          if [ -z "$GPG_PRIVATE_KEY" ]; then
+            echo "::error::GPG_PRIVATE_KEY secret is not set. Signing is required — add the secret in repo settings."
+            exit 1
+          fi
+          if [ -z "$GPG_PASSPHRASE" ]; then
+            echo "::error::GPG_PASSPHRASE secret is not set. Signing is required — add the secret in repo settings."
+            exit 1
+          fi
+
+          echo "$GPG_PRIVATE_KEY" | gpg --batch --import
+          SIG="${{ steps.rvp.outputs.path }}.asc"
+
+          echo "$GPG_PASSPHRASE" | gpg --batch --yes --passphrase-fd 0 \
+            --pinentry-mode loopback \
+            --armor --detach-sign "${{ steps.rvp.outputs.path }}"
+
+          if [ ! -f "$SIG" ]; then
+            echo "::error::Signing failed — $SIG not produced"
+            exit 1
+          fi
+          echo "sig_path=${SIG}" >> "$GITHUB_OUTPUT"
+          echo "sig_name=$(basename "$SIG")" >> "$GITHUB_OUTPUT"
+          echo "Signature: ${SIG} ($(stat -c%s "$SIG") bytes)"
 
       - name: Create GitHub Release
         id: release
@@ -76,11 +108,16 @@ jobs:
         run: |
           gh release create "${{ steps.version.outputs.tag }}" \
             "${{ steps.rvp.outputs.path }}" \
+            "${{ steps.sign.outputs.sig_path }}" \
             --repo "${{ github.repository }}" \
             --title "Patches ${{ steps.version.outputs.version }}" \
             --generate-notes
-          DL_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}/${{ steps.rvp.outputs.name }}"
-          echo "download_url=${DL_URL}" >> "$GITHUB_OUTPUT"
+          BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}"
+          echo "download_url=${BASE_URL}/${{ steps.rvp.outputs.name }}" >> "$GITHUB_OUTPUT"
+          echo "signature_url=${BASE_URL}/${{ steps.sign.outputs.sig_name }}" >> "$GITHUB_OUTPUT"
+          if false; then :
+            echo "signature_url=" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Update bundle.json
         run: |
@@ -89,7 +126,7 @@ jobs:
             "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
             "version": "${{ steps.version.outputs.tag }}",
             "download_url": "${{ steps.release.outputs.download_url }}",
-            "signature_download_url": "",
+            "signature_download_url": "${{ steps.release.outputs.signature_url }}",
             "description": "Automated release of patches ${{ steps.version.outputs.version }}"
           }
           EOF
