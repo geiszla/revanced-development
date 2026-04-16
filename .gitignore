@@ -26,7 +26,6 @@ patches/extensions/*/build/
 
 # Environment and credentials (may contain GitHub PAT)
 .env
-patches/gradle.properties
 patches/local.properties
 
 # OS

@@ -19,7 +19,7 @@ See [docs/setup-guide.md](docs/setup-guide.md) for detailed setup instructions.
 
 ```bash
 # 1. Configure GitHub Packages auth (required for Gradle dependencies)
-#    Add to patches/gradle.properties:
+#    Add to ~/.gradle/gradle.properties:
 #    gpr.user=<username>  gpr.key=<token>
 #    githubPackagesUsername=<username>  githubPackagesPassword=<token>
 

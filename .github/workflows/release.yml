@@ -54,6 +54,8 @@ jobs:
         env:
           GITHUB_ACTOR: ${{ github.actor }}
           GITHUB_TOKEN: ${{ secrets.REVANCED_PACKAGES_TOKEN }}
+          ORG_GRADLE_PROJECT_githubPackagesUsername: ${{ github.actor }}
+          ORG_GRADLE_PROJECT_githubPackagesPassword: ${{ secrets.REVANCED_PACKAGES_TOKEN }}
         run: ./gradlew build -x test --no-daemon
 
       - name: Locate .rvp artifact

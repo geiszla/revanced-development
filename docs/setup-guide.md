@@ -220,7 +220,8 @@ gh auth token
 Otherwise, create a PAT at:
 https://github.com/settings/tokens/new?scopes=read:packages&description=ReVanced
 
-Add your credentials to `patches/gradle.properties` (already gitignored):
+Add your credentials to `~/.gradle/gradle.properties` (user-level, outside the repo —
+keeps secrets out of the project tree):
 
 ```properties
 gpr.user=your-github-username
@@ -629,7 +630,7 @@ directly without needing split APK installers.
 
 ### Gradle build fails with 401 Unauthorized
 Your GitHub PAT is missing or expired. Run `gh auth refresh -s read:packages`,
-then update `patches/gradle.properties` with the new token from `gh auth token`.
+then update `~/.gradle/gradle.properties` with the new token from `gh auth token`.
 
 ### SDK location not found
 Run `./scripts/setup-tools.sh` to install the Android SDK. The script sets

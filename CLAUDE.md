@@ -23,7 +23,7 @@ revanced-patch-development/
       instagram/            # Instagram runtime extension classes (example)
       <other-app>/          # Additional apps get their own subpackage
     settings.gradle.kts     # Applies revanced patches gradle plugin
-    gradle.properties       # GitHub Packages auth (gpr.user, gpr.key)
+    gradle.properties       # Gradle settings + patch version (credentials live in ~/.gradle/gradle.properties)
     gradle/libs.versions.toml  # Patcher + plugin version catalog
   workspace/<app>/          # Per-app working directories
     apk/                    # Original APK files
