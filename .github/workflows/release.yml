@@ -115,15 +115,12 @@ jobs:
           BASE_URL="https://github.com/${{ github.repository }}/releases/download/${{ steps.version.outputs.tag }}"
           echo "download_url=${BASE_URL}/${{ steps.rvp.outputs.name }}" >> "$GITHUB_OUTPUT"
           echo "signature_url=${BASE_URL}/${{ steps.sign.outputs.sig_name }}" >> "$GITHUB_OUTPUT"
-          if false; then :
-            echo "signature_url=" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Update bundle.json
         run: |
           cat > bundle.json <<EOF
           {
-            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "created_at": "$(date -u +%Y-%m-%dT%H:%M:%S)",
             "version": "${{ steps.version.outputs.tag }}",
             "download_url": "${{ steps.release.outputs.download_url }}",
             "signature_download_url": "${{ steps.release.outputs.signature_url }}",
