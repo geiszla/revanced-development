@@ -72,6 +72,7 @@ See `docs/setup-guide.md` for detailed examples.
 - Reference extensions in Smali as `Lapp/revanced/extension/instagram/ClassName;`
 - Test patches by running `./scripts/build.sh <app> && ./scripts/install.sh output/<app>-<version>-patched.apk`
 - Convention: one `Matching.kt` + one `SomePatch.kt` per feature directory
+- Don't reference obfuscated identifiers (obfuscated class names like `C6KD`, method names like `A02`/`Dvu`, field refs like `c231558wZ.A03`), mobile-config long literals, or decompiled line numbers in code comments or doc blocks. Use semantic descriptions instead ("the V2 insertion helper", "the prefetch trigger"), plus Java framework types (`System.currentTimeMillis`, `Collections.singleton`) and stable in-binary strings (systrace labels, endpoint paths, debug-log strings) that actually appear at the match anchors
 
 ## When analyzing decompiled code
 - Decompiled Java source is in `workspace/<app>/decompiled/jadx/sources/`
