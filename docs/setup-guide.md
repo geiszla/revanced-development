@@ -1,6 +1,6 @@
 # ReVanced Patch Development -- Setup Guide
 
-> Last updated: 2026-03-27
+> Last updated: 2026-04-17
 
 ## Table of Contents
 
@@ -19,6 +19,16 @@
 - [How ReVanced Patching Works](#how-revanced-patching-works)
   - [Matching API](#matching-api)
 - [Development Workflow](#development-workflow)
+- [Publishing Patches as a Bundle](#publishing-patches-as-a-bundle)
+  - [1. Add the packages token](#1-add-the-packages-token)
+  - [2. Generate a GPG signing key](#2-generate-a-gpg-signing-key)
+  - [3. Add signing secrets to GitHub](#3-add-signing-secrets-to-github)
+  - [4. Publish the public key](#4-publish-the-public-key)
+  - [5. Create the `release` branch](#5-create-the-release-branch)
+  - [6. Share your manifest URL](#6-share-your-manifest-url)
+  - [Ongoing release flow](#ongoing-release-flow)
+  - [Renaming the patch bundle](#renaming-the-patch-bundle)
+  - [Rotating the GPG passphrase](#rotating-the-gpg-passphrase)
 - [Troubleshooting](#troubleshooting)
 
 ---
@@ -626,6 +636,125 @@ directly without needing split APK installers.
 
 ---
 
+## Publishing Patches as a Bundle
+
+This repo's `.github/workflows/release.yml` publishes a signed patch bundle that [ReVanced Manager](https://github.com/ReVanced/revanced-manager) can import. On every push to the `release` branch it builds `patches-<version>.rvp`, signs it with GPG, attaches both files to a GitHub Release, and updates `bundle.json` on the same branch. End users paste a single raw URL into Manager and get updates automatically.
+
+If you're forking this repo (or starting from [`revanced-patches-template`](https://github.com/ReVanced/revanced-patches-template) and copying the workflow across), follow the one-time setup below.
+
+### 1. Add the packages token
+
+Actions needs to pull ReVanced Maven dependencies from GitHub Packages. The repo's built-in `GITHUB_TOKEN` only covers the current repo's packages, so you need a PAT with cross-org `read:packages`.
+
+- Create (or reuse) a classic PAT: https://github.com/settings/tokens/new?scopes=read:packages&description=ReVanced%20Packages
+- Add it as a repo secret: `Settings → Secrets and variables → Actions → New repository secret`
+  - **Name**: `REVANCED_PACKAGES_TOKEN`
+  - **Value**: the PAT
+
+If `gh` CLI is configured and its token has `read:packages`, `gh auth token` prints a token you can paste.
+
+### 2. Generate a GPG signing key
+
+The workflow requires a signature. Pick a key that has no expiration or one you'll rotate deliberately.
+
+```bash
+# Interactive (install pinentry first on WSL)
+sudo dnf install pinentry
+echo 'export GPG_TTY=$(tty)' >> ~/.bashrc
+export GPG_TTY=$(tty)
+
+gpg --full-generate-key
+# Key type:  (9) ECC (sign and encrypt)   ← default
+# Curve:     (1) Curve 25519              ← default
+# Expiration: 0 (no expiration)
+# Real name:  Your Name
+# Email:      your@email.com
+# Passphrase: <strong, store in a password manager>
+```
+
+Get the key ID (everything after `sec ed25519/`):
+
+```bash
+gpg --list-secret-keys --keyid-format=long your@email.com
+```
+
+### 3. Add signing secrets to GitHub
+
+Export the ASCII-armored private key:
+
+```bash
+gpg --armor --export-secret-keys YOUR_KEY_ID > /tmp/signing-key.asc
+cat /tmp/signing-key.asc
+```
+
+Add two repo secrets at `Settings → Secrets and variables → Actions`:
+
+| Name | Value |
+|---|---|
+| `GPG_PRIVATE_KEY` | The full armored block, including `-----BEGIN PGP PRIVATE KEY BLOCK-----` and `-----END…-----` lines |
+| `GPG_PASSPHRASE` | The passphrase you chose |
+
+Cleanup:
+
+```bash
+shred -u /tmp/signing-key.asc
+```
+
+### 4. Publish the public key
+
+So users (and you) can verify signatures, commit your public key to the repo root:
+
+```bash
+gpg --armor --export YOUR_KEY_ID > public-key.asc
+git add public-key.asc
+git commit -m "Add GPG public key for patch signing"
+git push origin master
+```
+
+### 5. Create the `release` branch
+
+The workflow triggers on pushes to `release`:
+
+```bash
+git checkout -b release
+git push -u origin release
+```
+
+The first push kicks off the workflow. If all secrets are wired up correctly, ~2 minutes later you'll have:
+
+- A GitHub Release `v<version>` with `patches-<version>.rvp` + `patches-<version>.rvp.asc` attached
+- `bundle.json` on the `release` branch pointing at those assets
+
+Watch the run at `https://github.com/<your-username>/<your-repo>/actions`.
+
+### 6. Share your manifest URL
+
+The raw URL is stable across releases — paste it once into ReVanced Manager and it picks up updates automatically:
+
+```text
+https://raw.githubusercontent.com/<your-username>/<your-repo>/release/bundle.json
+```
+
+In Manager: **Patches tab → ✏️ (pencil) → + → paste URL**.
+
+### Renaming the patch bundle
+
+Edit `patches/patches/build.gradle.kts`:
+
+```kotlin
+patches {
+    about {
+        name = "Your Bundle Name"
+        description = "..."
+        author = "..."
+    }
+}
+```
+
+This `name` is what appears in ReVanced Manager's bundle list.
+
+---
+
 ## Troubleshooting
 
 ### Gradle build fails with 401 Unauthorized
@@ -666,3 +795,25 @@ Kotlin version (2.3.10 for plugin v1.0.0-dev.11). If you see this error:
 Instagram uses aggressive ProGuard/R8 obfuscation. Method/class names change between
 versions. Always use `composingFirstMethod` with structural properties (`strings`,
 `opcodes()`, `returnType()`, `accessFlags()`) rather than relying on class/method names.
+
+### Release workflow fails at "Fail if tag already exists"
+Bump `version` in `patches/gradle.properties`. The check is intentional — GitHub
+Releases can't be re-created under the same tag without destructive action.
+
+### Release workflow fails at GPG import
+Re-check the `GPG_PRIVATE_KEY` secret. It must be the **armored** export including
+the `-----BEGIN PGP PRIVATE KEY BLOCK-----` and `-----END…-----` lines. If you
+rotated the passphrase, re-export and update both `GPG_PRIVATE_KEY` and
+`GPG_PASSPHRASE` (the encrypted private-key material changes when the passphrase does).
+
+### Release workflow fails at build (401 from GitHub Packages)
+`REVANCED_PACKAGES_TOKEN` is missing or lacks `read:packages` scope. Create a
+new classic PAT with that scope and update the secret.
+
+### ReVanced Manager says "Couldn't download patches"
+Open the manifest URL in a browser and sanity-check `bundle.json`:
+
+- `download_url` must point to a real `.rvp` (not a `-sources.rvp` or `-javadoc.rvp`).
+- `created_at` must be plain ISO 8601 **without** a trailing `Z` (e.g. `2026-04-17T10:00:00`);
+  the Kotlin parser used by Manager rejects the `Z`-suffixed form.
+- `signature_download_url` must either be empty or point to a real `.rvp.asc`.

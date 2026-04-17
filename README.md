@@ -4,6 +4,44 @@ A development environment for writing custom [ReVanced](https://revanced.app/) p
 
 Supports patch development for any number of apps in parallel — each app lives in its own subdirectory under `patches/`, `extensions/`, and `workspace/`. Instagram is included as the first worked example.
 
+## Using These Patches (no development needed)
+
+The patches from this repo are published as a signed `.rvp` bundle that [ReVanced Manager](https://github.com/ReVanced/revanced-manager) can import. No cloning or Gradle build — just paste a URL into the app.
+
+### 1. Install ReVanced Manager
+
+Download the latest APK from the [ReVanced Manager releases page](https://github.com/ReVanced/revanced-manager/releases) and install it on your Android device.
+
+### 2. Add this repo as a patch source
+
+1. Open **ReVanced Manager**
+2. Tap the **Patches** tab in the top navigation bar
+3. Tap the **pencil/edit (✏️)** floating button in the bottom-right corner
+4. Tap the **+ (plus)** button that appears
+5. Paste:
+
+   ```text
+   https://raw.githubusercontent.com/geiszla/revanced-patch-development/release/bundle.json
+   ```
+
+6. Confirm — **ReVanced Patches (geiszla)** appears in the bundle list
+
+### 3. Patch an APK
+
+On the **Patcher** screen, tap **Storage** to pick a local APK, select patches, and patch. The output APK is saved to your device.
+
+### (Optional) Verify the signature
+
+The public GPG key is at [`public-key.asc`](public-key.asc):
+
+```bash
+gpg --import public-key.asc
+gpg --verify patches-<version>.rvp.asc patches-<version>.rvp
+# Expect: "Good signature from ..."
+```
+
+> Want to run your own patch bundle? See [docs/setup-guide.md — Publishing patches as a bundle](docs/setup-guide.md#publishing-patches-as-a-bundle).
+
 ## Quick Start
 
 ### Prerequisites
@@ -62,7 +100,7 @@ To start a second app, run `./scripts/add-app.sh <package> <app-name>` with a ne
 
 ## Project Structure
 
-```
+```text
 patches/                    Kotlin/Gradle patches project
   patches/src/main/kotlin/  Patch source code (one subdir per app)
   extensions/extension/     Runtime code compiled to DEX and merged into target apps
